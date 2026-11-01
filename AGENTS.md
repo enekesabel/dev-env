@@ -1,5 +1,7 @@
 ## Communication protocol
-- When referring to an issue, ticket, or pull request, lead with its number and, on its first mention in a message, follow it with its title, e.g. `#27 "Skeleton trunk: repo, lanes, boundaries, CI"`. Later mentions in the same message may use the bare number.
+- Make every reference explicit and followable. When you refer to an issue, ticket, pull request, thread, document, or similar item, link it with a URL or URI I can open. If you have no such link, give its title and any identifier.
+- Never refer to an item by number or ID alone, even if I do. On its first mention in a message, give its number and title, e.g. `#27 "Skeleton trunk: repo, lanes, boundaries, CI"`. After that, use a short descriptive name such as "the skeleton trunk PR".
 
 ## Delegating to sub-agents or background agents
-- Before spawning a sub-agent or background agent, discuss its model and effort level with me first.
+- Delegate work to sub-agents or background agents when it helps.
+- Before dispatching, recommend a model and effort level for each, including when you would use the default, and wait for my approval. One approval can cover a batch of agents dispatched together.
