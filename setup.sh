@@ -8,6 +8,7 @@ set -uo pipefail
 
 raw=https://raw.githubusercontent.com/enekesabel/dev-env/main
 devflow="$HOME/.agents/dev-flow"
+agents_md="$HOME/.agents/AGENTS.md"
 settings="$HOME/.claude/settings.json"
 
 warn() { echo "dev-env: $*" >&2; }
@@ -21,6 +22,12 @@ install_devflow() {
   else
     git clone -q https://github.com/enekesabel/dev-flow.git "$devflow"
   fi
+}
+
+# One shared copy of the instructions. mv replaces a symlink here instead of writing through it.
+install_instructions() {
+  mkdir -p "$(dirname "$agents_md")"
+  curl -fsSL "$raw/AGENTS.md" -o "$agents_md.tmp" && mv "$agents_md.tmp" "$agents_md"
 }
 
 install_skills() {
@@ -51,6 +58,11 @@ setup_claude() {
   mkdir -p "$(dirname "$settings")"
   [ -s "$settings" ] || echo '{}' > "$settings"
 
+  # Instructions: Claude only reads the shared file through an import
+  local claude_md="$HOME/.claude/CLAUDE.md" import='@~/.agents/AGENTS.md'
+  grep -qxF "$import" "$claude_md" 2>/dev/null || printf '\n%s\n' "$import" >> "$claude_md" ||
+    warn "instructions import failed"
+
   # Advisor
   edit_settings '. * {advisorModel: "fable"}' || warn "advisor setting failed"
 
@@ -68,11 +80,21 @@ setup_claude() {
   add_cloud_refresh || warn "cloud refresh failed"
 }
 
+# Instructions: Codex only reads its own folder. Instructions already there are kept.
+setup_codex() {
+  mkdir -p "$HOME/.codex"
+  [ -e "$HOME/.codex/AGENTS.md" ] || ln -sfn ../.agents/AGENTS.md "$HOME/.codex/AGENTS.md" ||
+    warn "Codex instructions link failed"
+}
+
 main() {
   install_devflow || warn "DevFlow clone failed"
+  install_instructions || warn "instructions install failed"
   install_skills || warn "skill list failed"
   # A running session can't pick up harness changes, so a refresh leaves them alone.
-  if [ "${1:-}" != refresh ] && command -v claude >/dev/null; then setup_claude; fi
+  [ "${1:-}" != refresh ] || return 0
+  if command -v claude >/dev/null; then setup_claude; fi
+  if command -v codex >/dev/null; then setup_codex; fi
 }
 
 # The whole script is read before main runs, so nothing it starts can eat a piped script.
