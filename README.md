@@ -17,7 +17,7 @@ Run it again to update everything. It installs from `main`, so push changes firs
   that folder. It only touches skills on the list, and never deletes anything else.
 - **Harness extras**: anything only one harness understands, in its own section of
   [`setup.sh`](setup.sh). That section runs only if the harness is installed. Claude's imports the
-  instructions into `~/.claude/CLAUDE.md`, sets the advisor and output style, and installs the DevFlow
+  instructions into `~/.claude/CLAUDE.md`, sets the output style, and installs the DevFlow
   plugin from the shared copy. Codex's links `~/.codex/AGENTS.md` to the instructions.
 
 Codex and Cursor read `~/.agents/skills` themselves. Cursor doesn't read the shared instructions yet.

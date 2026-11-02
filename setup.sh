@@ -63,9 +63,6 @@ setup_claude() {
   grep -qxF "$import" "$claude_md" 2>/dev/null || printf '\n%s\n' "$import" >> "$claude_md" ||
     warn "instructions import failed"
 
-  # Advisor
-  edit_settings '. * {advisorModel: "fable"}' || warn "advisor setting failed"
-
   # DevFlow plugin, with the Coordinator as the default output style
   if claude plugin marketplace add "$devflow" && claude plugin install dev-flow@dev-flow &&
     claude plugin marketplace update dev-flow && claude plugin update dev-flow@dev-flow; then
