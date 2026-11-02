@@ -71,9 +71,6 @@ setup_claude() {
     warn "DevFlow install failed"
   fi
 
-  # Built-in plugins
-  claude plugin enable cc-plugin-you-should-know@builtin --scope user || warn "you-should-know enable failed"
-
   add_cloud_refresh || warn "cloud refresh failed"
 }
 
