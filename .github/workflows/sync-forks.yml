@@ -1,0 +1,34 @@
+name: Sync forked skills
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: ./sync-forks.sh > "$RUNNER_TEMP/report.md"
+      - name: Open or update the sync PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          [ -n "$(git status --porcelain)" ] || { echo "Forks are up to date."; exit 0; }
+          git config user.name "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          git checkout -B sync-forks
+          git add -A
+          git commit -q -m "Sync forked skills with upstream"
+          git push -f origin sync-forks
+          { echo "Upstream changes merged into the forked skills. Check each merge reads well with our changes, and resolve any conflict markers before merging."; echo; cat "$RUNNER_TEMP/report.md"; } > "$RUNNER_TEMP/body.md"
+          if gh pr view sync-forks --json state -q .state 2>/dev/null | grep -q OPEN; then
+            gh pr edit sync-forks --body-file "$RUNNER_TEMP/body.md"
+          else
+            gh pr create --head sync-forks --title "Sync forked skills with upstream" --body-file "$RUNNER_TEMP/body.md"
+          fi
