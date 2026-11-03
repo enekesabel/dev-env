@@ -2,4 +2,4 @@
 # <skill> <owner/repo> <path in that repo> <upstream commit the fork is synced to>
 # sync-forks.sh merges upstream changes since that commit and moves it forward.
 
-pr mattpocock/skills skills/engineering/pr e484a8095543718ced436b9b49a8160ed4554000
+pr mattpocock/skills skills/engineering/pr a7d038f
