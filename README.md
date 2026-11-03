@@ -29,6 +29,19 @@ Codex and Cursor read `~/.agents/skills` themselves. Cursor doesn't read the sha
 
 Then run the setup again.
 
+## Forked skills
+
+Some skills in [`skills/`](skills/) are someone else's, copied with my changes. [`forks.txt`](forks.txt)
+lists each one's upstream and the upstream commit it's synced to.
+
+Every Monday, a GitHub Action runs [`sync-forks.sh`](sync-forks.sh), which merges upstream changes
+since that commit into my copy. If anything changed, it opens a `sync-forks` PR. Conflicts show up as
+conflict markers to resolve in that PR. Run the script locally, or the Action from the Actions tab, to
+sync sooner.
+
+To fork another skill, copy its folder into `skills/`, remove it from `skills.txt`, and add a line to
+`forks.txt` with the upstream commit you copied.
+
 ## Try a change to a skill
 
 Replace the installed copy with a link to your working copy:
