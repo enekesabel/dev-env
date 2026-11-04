@@ -13,12 +13,15 @@ Run it again to update everything. It installs from `main`, so push changes firs
 - **DevFlow**: cloned to `~/.agents/dev-flow`, the one shared copy. The `devflow` skill points at it, so
   any harness can start the Coordinator.
 - **Instructions**: [`AGENTS.md`](AGENTS.md), to `~/.agents/AGENTS.md`, the one shared copy.
-- **Skills**: everything in [`skills.txt`](skills.txt), into `~/.agents/skills`, with Claude linked to
-  that folder. It only touches skills on the list, and never deletes anything else.
+- **Skills**: [`skills.txt`](skills.txt) is the canonical list. Unmarked lines install into
+  `~/.agents/skills`, with Claude linked to that folder. Prefixed lines become namespaced plugins,
+  such as `matt:tdd`, in each installed harness (see below).
 - **Harness extras**: anything only one harness understands, in its own section of
   [`setup.sh`](setup.sh). That section runs only if the harness is installed. Claude's imports the
-  instructions into `~/.claude/CLAUDE.md`, sets the output style, and installs the DevFlow
-  plugin from the shared copy. Codex's links `~/.codex/AGENTS.md` to the instructions.
+  instructions into its `CLAUDE.md`, sets the output style, and installs the DevFlow plugin from the
+  shared copy. Codex's links its `AGENTS.md` to the instructions. Both use their config folder
+  (`~/.claude`, `~/.codex`, or `CLAUDE_CONFIG_DIR`/`CODEX_HOME` when set). Claude, Codex and Cursor
+  each install the scoped plugins in their own section.
 
 Codex and Cursor read `~/.agents/skills` themselves. Cursor doesn't read the shared instructions yet.
 
@@ -29,18 +32,48 @@ Codex and Cursor read `~/.agents/skills` themselves. Cursor doesn't read the sha
 
 Then run the setup again.
 
-## Forked skills
+Each line in [`skills.txt`](skills.txt) has this form:
 
-Some skills in [`skills/`](skills/) are someone else's, copied with my changes. [`forks.txt`](forks.txt)
-lists each one's upstream and the upstream commit it's synced to.
+```text
+[<prefix>=]<github-source> <skill>...
+```
 
-Every Monday, a GitHub Action runs [`sync-forks.sh`](sync-forks.sh), which merges upstream changes
-since that commit into my copy. If anything changed, it opens a `sync-forks` PR. Conflicts show up as
-conflict markers to resolve in that PR. Run the script locally, or the Action from the Actions tab, to
-sync sooner.
+`*` selects every skill in the source. Without a prefix, installation works as before. For example:
 
-To fork another skill, copy its folder into `skills/`, remove it from `skills.txt`, and add a line to
-`forks.txt` with the upstream commit you copied.
+```text
+enekesabel/dev-env *
+matt=mattpocock/skills tdd pr code-review
+```
+
+Each prefix gets one line, and becomes one plugin. Prefixes use lowercase letters, digits and
+hyphens. Setup stops if a prefix appears twice, or if a source's skill is listed both scoped and
+unscoped. Different sources may share names: this repo's `pr` and `code-review` wrap `matt:pr` and
+`matt:code-review`.
+
+## Scoped plugins and updates
+
+Whenever [`setup.sh`](setup.sh) runs, it rebuilds scoped plugins from the current upstream skills
+in `~/.agents/skill-plugins`, outside the shared skills folder, as the local `dev-env-skills`
+marketplace. A build that fails keeps the previous one. Upstream text stays unchanged, except for
+Cursor's skill names.
+
+- **Claude Code** registers the local marketplace and installs missing plugins. Local plugins load
+  from their source folders, so rebuilt content appears in the next session without a plugin update.
+- **Codex** registers the same marketplace and re-adds each plugin on every setup run to refresh
+  its cached copy. Starting Codex alone does not refresh it.
+- **Cursor** gets real files in `~/.cursor/plugins/local/<prefix>/`. Each skill folder and its
+  frontmatter `name` use `<prefix>:<skill>`, because Cursor does not add the namespace itself.
+
+Removing skills from a scoped line removes them on the next rebuild. Removing a prefix uninstalls
+its plugin. Setup only removes plugins from its own marketplace, and Cursor folders it marked as
+its own.
+
+Moving skills from an unscoped line to a scoped one leaves the old copies in `~/.agents/skills`,
+because setup never deletes from there. Remove them once on each machine with
+`npx skills remove <skill>... -g -y`.
+
+For isolated tests, `DEV_ENV_SKILLS_FILE=/absolute/path/to/skills.txt bash setup.sh` reads a local
+list instead of downloading it. Other downloads still use `main`.
 
 ## Try a change to a skill
 
@@ -51,13 +84,14 @@ rm -rf ~/.agents/skills/<name>
 ln -s ~/path/to/skills/<name> ~/.agents/skills/<name>
 ```
 
-Running the setup again removes the link and restores the published version, and your working copy
-stays as it is. This restores every override at once. To work on DevFlow itself, link
+For an unscoped skill, running the setup again removes the link and restores the published version.
+Your working copy stays as it is. This restores every override at once. To work on DevFlow itself, link
 `~/.agents/dev-flow` to your checkout the same way. `~/.agents/AGENTS.md` works the same.
 
 ## Cloud
 
 Use the line above as the environment's setup script. Cloud sessions start from a snapshot that can be
 about a week old, so the setup adds a session start hook that refreshes DevFlow, the instructions and
-the skills in each cloud session. Settings and plugins update when the snapshot is rebuilt. The hook does nothing locally,
-so it can't restore a skill you're experimenting with.
+the skills in each cloud session, including rebuilding scoped plugins and refreshing their harness
+installs for the next session. Other harness settings and the DevFlow plugin update when the snapshot
+is rebuilt. The hook does nothing locally, so it can't restore a skill you're experimenting with.
