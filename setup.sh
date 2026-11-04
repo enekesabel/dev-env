@@ -42,6 +42,7 @@ read_skill_list() {
   else
     skill_list=$(curl -fsSL "$raw/skills.txt") || return 1
   fi
+  # 2 marks an invalid list, which stops setup; 1 is a failed download.
   awk '
     /^[[:space:]]*#/ || NF == 0 { next }
     {
@@ -63,10 +64,11 @@ read_skill_list() {
         seen[source, scope, $i] = 1; any[source, scope] = 1
       }
     }
-  ' <<<"$skill_list"
+  ' <<<"$skill_list" || return 2
 }
 
 # One-time migration; drop this step once machines have moved to the scoped plugin.
+# It also removes review-pr, which this repo renamed to code-review.
 remove_old_matt_skills() {
   [ ! -e "$plugin_root/matt-migrated" ] || return 0
   local skill source lock="$HOME/.agents/.skill-lock.json" remove=()
@@ -81,6 +83,7 @@ remove_old_matt_skills() {
     if [ -z "$source" ] && { [ "$skill" = pr ] || [ "$skill" = code-review ]; }; then continue; fi
     remove+=("$skill")
   done
+  if [ -e "$HOME/.agents/skills/review-pr" ] || [ -L "$HOME/.agents/skills/review-pr" ]; then remove+=(review-pr); fi
   if [ "${#remove[@]}" -gt 0 ]; then
     npx -y skills remove "${remove[@]}" -g -y </dev/null || return 1
   fi
@@ -257,10 +260,16 @@ setup_cursor() {
 }
 
 main() {
-  read_skill_list || return 1
+  local list=0
+  read_skill_list || list=$?
+  [ "$list" -ne 2 ] || return 1
   install_devflow || warn "DevFlow clone failed"
   install_instructions || warn "instructions install failed"
-  install_skills || { warn "skill install failed"; return 1; }
+  if [ "$list" -ne 0 ]; then
+    warn "skill list failed"
+  else
+    install_skills || warn "skill install failed"
+  fi
   if command -v claude >/dev/null; then setup_claude "${1:-}"; fi
   if command -v codex >/dev/null; then setup_codex "${1:-}"; fi
   if command -v cursor >/dev/null || command -v cursor-agent >/dev/null; then setup_cursor; fi
