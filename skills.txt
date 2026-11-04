@@ -1,6 +1,6 @@
 # [<prefix>=]<source> <skill>...
 # "*" means every skill in the source. Unmarked lines install shared skills.
-# A prefix delivers namespaced plugin skills, e.g. matt=mattpocock/skills tdd.
+# A prefix delivers namespaced plugin skills, e.g. mattpocock=mattpocock/skills tdd.
 # Lines sharing a prefix form one plugin. A source/skill cannot be scoped and unscoped.
 
 enekesabel/dev-env *
@@ -8,5 +8,5 @@ enekesabel/dev-flow use-skill
 t3dotgg/tstack leaving-pr-comments
 humanlayer/skills show-me
 DietrichGebert/ponytail *
-matt=mattpocock/skills ask-matt code-review codebase-design diagnosing-bugs domain-modeling grill-me grill-with-docs grilling handoff implement implement-spec improve-codebase-architecture pr prototype research retro setup-matt-pocock-skills setup-ts-deep-modules tdd to-spec to-tickets triage wayfinder writing-for-agents
+mattpocock=mattpocock/skills ask-matt code-review codebase-design diagnosing-bugs domain-modeling grill-me grill-with-docs grilling handoff implement implement-spec improve-codebase-architecture pr prototype research retro setup-matt-pocock-skills setup-ts-deep-modules tdd to-spec to-tickets triage wayfinder writing-for-agents
 emil=emilkowalski/skills emil-design-eng animate review-animations improve-animations find-animation-opportunities remove-animations animation-performance animation-vocabulary break-ui mobile-native pick-ui-library apple-design prototype
