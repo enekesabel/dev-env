@@ -5,7 +5,7 @@ description: Review a PR, branch or diff with the Standards, Spec and ponytail c
 
 Every review combines two skills:
 
-- `matt:code-review` (Matt Pocock): the **Standards** and **Spec** axes.
+- `mattpocock:code-review` (Matt Pocock): the **Standards** and **Spec** axes.
 - `ponytail-review`: what to cut or simplify, applied alongside Standards.
 
 ## Reviewer
@@ -21,5 +21,5 @@ Decide from the size and complexity of the change:
 - **Otherwise:** two reviewers in parallel. One covers **Spec** only. The other covers **Standards
   plus ponytail**.
 
-When split, tell each reviewer to run only its own axes, since `matt:code-review` would otherwise start
+When split, tell each reviewer to run only its own axes, since `mattpocock:code-review` would otherwise start
 its own sub-agents for both.

@@ -15,7 +15,7 @@ Run it again to update everything. It installs from `main`, so push changes firs
 - **Instructions**: [`AGENTS.md`](AGENTS.md), to `~/.agents/AGENTS.md`, the one shared copy.
 - **Skills**: [`skills.txt`](skills.txt) is the canonical list. Unmarked lines install into
   `~/.agents/skills`, with Claude linked to that folder. Prefixed lines become namespaced plugins,
-  such as `matt:tdd`, in each installed harness (see below).
+  such as `mattpocock:tdd`, in each installed harness (see below).
 - **Harness extras**: anything only one harness understands, in its own section of
   [`setup.sh`](setup.sh). That section runs only if the harness is installed. Claude's imports the
   instructions into its `CLAUDE.md`, sets the output style, and installs the DevFlow plugin from the
@@ -42,13 +42,13 @@ Each line in [`skills.txt`](skills.txt) has this form:
 
 ```text
 enekesabel/dev-env *
-matt=mattpocock/skills tdd pr code-review
+mattpocock=mattpocock/skills tdd pr code-review
 ```
 
 Each prefix gets one line, and becomes one plugin. Prefixes use lowercase letters, digits and
 hyphens. Setup stops if a prefix appears twice, or if a source's skill is listed both scoped and
-unscoped. Different sources may share names: this repo's `pr` and `code-review` wrap `matt:pr` and
-`matt:code-review`.
+unscoped. Different sources may share names: this repo's `pr` and `code-review` wrap `mattpocock:pr` and
+`mattpocock:code-review`.
 
 ## Scoped plugins and updates
 
