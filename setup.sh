@@ -35,180 +35,76 @@ install_instructions() {
   curl -fsSL "$raw/AGENTS.md" -o "$agents_md.tmp" && mv "$agents_md.tmp" "$agents_md"
 }
 
-# Validate before installing anything. Identity includes the source: our wrappers may share upstream names.
+# Stops on an invalid list (2) and not on a failed download (1). Identity includes the source: our wrappers
+# share upstream names.
 read_skill_list() {
   if [ -n "${DEV_ENV_SKILLS_FILE:-}" ]; then
     skill_list=$(cat "$DEV_ENV_SKILLS_FILE") || return 1
   else
     skill_list=$(curl -fsSL "$raw/skills.txt") || return 1
   fi
-  # 2 marks an invalid list, which stops setup; 1 is a failed download.
   awk '
-    /^[[:space:]]*#/ || NF == 0 { next }
+    function fail(msg) { print "dev-env: " msg > "/dev/stderr"; exit 1 }
+    /^[[:space:]]*#/ || NF < 2 { next }
     {
       source = $1; scope = "unscoped"
-      if (index(source, "=")) {
-        scope = substr(source, 1, index(source, "=") - 1)
-        source = substr(source, index(source, "=") + 1)
-        if (scope !~ /^[a-z0-9][a-z0-9-]*$/ || source == "" || index(source, "=")) {
-          print "dev-env: invalid skill prefix/source: " $1 > "/dev/stderr"; exit 1
-        }
-        scope = "scoped"
+      if (split($1, part, "=") > 1) {
+        if (part[1] !~ /^[a-z0-9-]+$/ || part[2] == "") fail("invalid prefix: " $1)
+        if (part[1] in prefixes) fail("prefix listed twice: " part[1])
+        prefixes[part[1]]; source = part[2]; scope = "scoped"
       }
-      if (NF < 2) { print "dev-env: missing skills for " $1 > "/dev/stderr"; exit 1 }
+      other = scope == "scoped" ? "unscoped" : "scoped"
       for (i = 2; i <= NF; i++) {
-        other = scope == "scoped" ? "unscoped" : "scoped"
-        if (seen[source, other, $i] || seen[source, other, "*"] || ($i == "*" && any[source, other])) {
-          print "dev-env: skill listed both scoped and unscoped: " source " " $i > "/dev/stderr"; exit 1
-        }
+        if (seen[source, other, $i] || seen[source, other, "*"] || ($i == "*" && any[source, other]))
+          fail("skill listed both scoped and unscoped: " source " " $i)
         seen[source, scope, $i] = 1; any[source, scope] = 1
       }
     }
   ' <<<"$skill_list" || return 2
 }
 
-# One-time migration; drop this step once machines have moved to the scoped plugin.
-# It also removes review-pr, which this repo renamed to code-review.
-remove_old_matt_skills() {
-  [ ! -e "$plugin_root/matt-migrated" ] || return 0
-  local skill source lock="$HOME/.agents/.skill-lock.json" remove=()
-  [ -z "${XDG_STATE_HOME:-}" ] || lock="$XDG_STATE_HOME/skills/.skill-lock.json"
-  for skill in ask-matt code-review codebase-design diagnosing-bugs domain-modeling grill-me grill-with-docs \
-    grilling handoff implement implement-spec improve-codebase-architecture pr prototype research retro \
-    setup-matt-pocock-skills setup-ts-deep-modules tdd to-spec to-tickets triage wayfinder writing-for-agents; do
-    [ -e "$HOME/.agents/skills/$skill" ] || [ -L "$HOME/.agents/skills/$skill" ] || continue
-    source=$(jq -r --arg skill "$skill" '.skills[$skill].source // empty' "$lock" 2>/dev/null) || source=
-    # Preserve replacements, especially this repo's pr and code-review wrappers.
-    [ -z "$source" ] || [ "$source" = mattpocock/skills ] || continue
-    if [ -z "$source" ] && { [ "$skill" = pr ] || [ "$skill" = code-review ]; }; then continue; fi
-    remove+=("$skill")
-  done
-  if [ -e "$HOME/.agents/skills/review-pr" ] || [ -L "$HOME/.agents/skills/review-pr" ]; then remove+=(review-pr); fi
-  if [ "${#remove[@]}" -gt 0 ]; then
-    npx -y skills remove "${remove[@]}" -g -y </dev/null || return 1
-  fi
-  touch "$plugin_root/matt-migrated"
+# Build one prefix's plugin in staging, so a failed build keeps the previous one.
+build_plugin() {
+  local prefix=$1 source=$2 stage="$plugin_root/staging/$1"
+  shift 2
+  rm -rf "$stage" && mkdir -p "$stage" "$plugin_root/plugins" || return 1
+  (cd "$stage" && npx -y skills add "$source" --skill "$@" -a claude-code codex -y </dev/null) || return 1
+  # Real files: Codex drops symlinks when it copies a plugin into its cache.
+  mkdir -p "$stage/plugin/.claude-plugin" && cp -RL "$stage/.agents/skills" "$stage/plugin/skills" &&
+    printf '{"name": "%s", "version": "1.0.0"}\n' "$prefix" > "$stage/plugin/.claude-plugin/plugin.json" &&
+    rm -rf "$plugin_root/plugins/$prefix" && mv "$stage/plugin" "$plugin_root/plugins/$prefix"
 }
 
-install_skills() {
-  local entry prefix source path old
-  mkdir -p "$plugin_root/plugins" "$plugin_root/.claude-plugin" || return 1
-  remove_old_matt_skills || return 1
-  rm -rf "$plugin_root/staging"
-  mkdir -p "$plugin_root/staging" || return 1
-  : > "$plugin_root/prefixes.next"
-  # Collect prefixes first so multiple sources can contribute to one clean build.
-  while read -ra entry; do
-    [ "${#entry[@]}" -gt 1 ] && [ "${entry[0]:0:1}" != "#" ] || continue
-    case "${entry[0]}" in
-      *=*) printf '%s\n' "${entry[0]%%=*}" ;;
-    esac
-  done <<<"$skill_list" | sort -u > "$plugin_root/prefixes.next"
+# The plugins folder is what every harness syncs to.
+scoped_plugins() { ls "$plugin_root/plugins" 2>/dev/null; }
 
-  while read -r prefix; do
-    mkdir -p "$plugin_root/staging/$prefix" || return 1
-  done < "$plugin_root/prefixes.next"
+install_skills() {
+  local entry prefix listed=" " entries= sep=
   while read -ra entry; do
     [ "${#entry[@]}" -gt 1 ] && [ "${entry[0]:0:1}" != "#" ] || continue
-    source=${entry[0]}
-    if [[ "$source" == *=* ]]; then
-      prefix=${source%%=*}; source=${source#*=}
-      (cd "$plugin_root/staging/$prefix" &&
-        npx -y skills add "$source" --skill "${entry[@]:1}" -a claude-code codex -y </dev/null) || return 1
+    if [[ "${entry[0]}" == *=* ]]; then
+      prefix=${entry[0]%%=*}
+      listed+="$prefix "
+      build_plugin "$prefix" "${entry[0]#*=}" "${entry[@]:1}" || warn "$prefix plugin build failed"
       continue
     fi
     # Naming a second agent is what puts skills in the shared ~/.agents/skills.
-    npx -y skills add "$source" --skill "${entry[@]:1}" -g -a claude-code codex -y </dev/null ||
-      warn "$source install failed"
+    npx -y skills add "${entry[0]}" --skill "${entry[@]:1}" -g -a claude-code codex -y </dev/null ||
+      warn "${entry[0]} install failed"
   done <<<"$skill_list"
-
-  while read -r prefix; do
-    path="$plugin_root/staging/$prefix"
-    mkdir -p "$path/plugin/skills" "$path/plugin/.claude-plugin" || return 1
-    # Dereference every link: Codex drops symlinks when copying plugins into its cache.
-    cp -RL "$path/.agents/skills/." "$path/plugin/skills/" || return 1
-    jq -n --arg name "$prefix" '{name: $name, version: "1.0.0"}' > "$path/plugin/.claude-plugin/plugin.json" || return 1
-  done < "$plugin_root/prefixes.next"
-  while read -r prefix; do
-    rm -rf "$plugin_root/plugins/$prefix"
-    mv "$plugin_root/staging/$prefix/plugin" "$plugin_root/plugins/$prefix" || return 1
-  done < "$plugin_root/prefixes.next"
-  while read -r old; do
-    grep -qxF "$old" "$plugin_root/prefixes.next" && continue
-    rm -rf "$plugin_root/plugins/$old"
-  done < <(cat "$plugin_root/prefixes" 2>/dev/null)
-  jq -Rn --arg name "$marketplace" '{name: $name, owner: {name: "enekesabel"},
-    plugins: [inputs | {name: ., source: ("./plugins/" + .)}]}' \
-    < "$plugin_root/prefixes.next" > "$plugin_root/.claude-plugin/marketplace.json" || return 1
-  mv "$plugin_root/prefixes.next" "$plugin_root/prefixes" || return 1
   rm -rf "$plugin_root/staging"
-}
 
-install_cursor_plugin() {
-  local prefix=$1 target="$HOME/.cursor/plugins/local/$1" skill name
-  mkdir -p "$(dirname "$target")" || return 1
-  rm -rf "$target"
-  cp -RL "$plugin_root/plugins/$prefix" "$target" || return 1
-  for skill in "$target"/skills/*; do
-    [ -f "$skill/SKILL.md" ] || continue
-    name=$(basename "$skill")
-    # Change only the frontmatter name; upstream prose and references stay verbatim.
-    node - "$skill/SKILL.md" "$prefix:$name" <<'JS' || return 1
-const fs = require('node:fs');
-const [file, name] = process.argv.slice(2);
-const text = fs.readFileSync(file, 'utf8');
-const frontmatter = text.match(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/)?.[0];
-if (!frontmatter || !/^name:[^\r\n]*$/m.test(frontmatter)) throw new Error(`Missing skill name: ${file}`);
-fs.writeFileSync(file, frontmatter.replace(/^name:[^\r\n]*/m, `name: ${name}`) + text.slice(frontmatter.length));
-JS
-    mv "$skill" "$target/skills/$prefix:$name" || return 1
+  for prefix in $(scoped_plugins); do
+    if [[ "$listed" == *" $prefix "* ]]; then
+      entries+="$sep{\"name\": \"$prefix\", \"source\": \"./plugins/$prefix\"}"
+      sep=", "
+    else
+      rm -rf "${plugin_root:?}/plugins/$prefix"
+    fi
   done
-}
-
-# Separate ownership records let an absent harness catch up, and retry failed uninstalls later.
-sync_plugins() {
-  local harness=$1 prefix id installed state="$plugin_root/$1-prefixes" failed=0
-  : > "$state.next"
-  while read -r prefix; do
-    if grep -qxF "$prefix" "$plugin_root/prefixes"; then
-      printf '%s\n' "$prefix" >> "$state.next"
-      continue
-    fi
-    id="$prefix@$marketplace"
-    case "$harness" in
-      claude) claude plugin uninstall "$id" ;;
-      codex) codex plugin remove "$id" ;;
-      cursor) rm -rf "$HOME/.cursor/plugins/local/$prefix" ;;
-    esac || { printf '%s\n' "$prefix" >> "$state.next"; failed=1; warn "$harness uninstall $id failed"; }
-  done < <(cat "$state" 2>/dev/null)
-  mv "$state.next" "$state" || return 1
-
-  if [ -s "$plugin_root/prefixes" ]; then
-    case "$harness" in
-      claude|codex) "$harness" plugin marketplace add "$plugin_root" || return 1 ;;
-    esac
-  fi
-  if [ "$harness" = claude ] && [ -s "$plugin_root/prefixes" ]; then
-    installed=$(claude plugin list --json) || return 1
-  fi
-  while read -r prefix; do
-    id="$prefix@$marketplace"
-    # Record ownership before trying an install that could partially succeed.
-    grep -qxF "$prefix" "$state" || printf '%s\n' "$prefix" >> "$state"
-    case "$harness" in
-      claude)
-        if ! jq -e --arg id "$id" 'any(.[]; .id == $id)' <<<"$installed" >/dev/null; then
-          claude plugin install "$id"
-        fi ;;
-      # Re-add even at the same version: startup alone does not refresh Codex's cache.
-      codex) codex plugin add "$id" ;;
-      cursor) install_cursor_plugin "$prefix" ;;
-    esac
-    if [ "$?" -ne 0 ]; then
-      failed=1; warn "$harness install $id failed"
-    fi
-  done < "$plugin_root/prefixes"
-  return "$failed"
+  mkdir -p "$plugin_root/.claude-plugin" &&
+    printf '{"name": "%s", "owner": {"name": "enekesabel"}, "plugins": [%s]}\n' "$marketplace" "$entries" \
+      > "$plugin_root/.claude-plugin/marketplace.json"
 }
 
 # Apply a jq filter to the user settings, keeping everything else.
@@ -224,9 +120,22 @@ add_cloud_refresh() {
       + [{hooks: [{type: "command", command: $cmd}]}]'
 }
 
+# Claude loads local plugins from their folder, so new content shows up in the next session.
+claude_plugins() {
+  local installed id prefix
+  installed=$(claude plugin list --json | jq -r '.[].id') || return 1
+  for id in $(grep "@$marketplace\$" <<<"$installed"); do
+    [ -d "$plugin_root/plugins/${id%@*}" ] || claude plugin uninstall "$id" || warn "Claude uninstall $id failed"
+  done
+  [ -n "$(scoped_plugins)" ] || return 0
+  claude plugin marketplace add "$plugin_root" || return 1
+  for prefix in $(scoped_plugins); do
+    grep -qxF "$prefix@$marketplace" <<<"$installed" || claude plugin install "$prefix@$marketplace" ||
+      warn "Claude install $prefix failed"
+  done
+}
+
 setup_claude() {
-  sync_plugins claude || warn "Claude scoped plugins failed"
-  [ "${1:-}" != refresh ] || return 0
   mkdir -p "$(dirname "$settings")"
   [ -s "$settings" ] || echo '{}' > "$settings"
 
@@ -246,33 +155,69 @@ setup_claude() {
   add_cloud_refresh || warn "cloud refresh failed"
 }
 
+# Codex only refreshes its cached copy when a plugin is added again, so add every one on each run.
+codex_plugins() {
+  local prefix
+  # shortcut: reads Codex's cache folder to find installed plugins; switch if `codex plugin list` gains an installed filter.
+  for prefix in $(ls "$codex_config/plugins/cache/$marketplace" 2>/dev/null); do
+    [ -d "$plugin_root/plugins/$prefix" ] || codex plugin remove "$prefix@$marketplace" ||
+      warn "Codex uninstall $prefix failed"
+  done
+  [ -n "$(scoped_plugins)" ] || return 0
+  codex plugin marketplace add "$plugin_root" || return 1
+  for prefix in $(scoped_plugins); do
+    codex plugin add "$prefix@$marketplace" || warn "Codex install $prefix failed"
+  done
+}
+
 # Instructions: Codex only reads its own folder. Instructions already there are kept.
 setup_codex() {
-  sync_plugins codex || warn "Codex scoped plugins failed"
-  [ "${1:-}" != refresh ] || return 0
   mkdir -p "$codex_config"
   [ -e "$codex_config/AGENTS.md" ] || ln -sfn "$agents_md" "$codex_config/AGENTS.md" ||
     warn "Codex instructions link failed"
 }
 
-setup_cursor() {
-  sync_plugins cursor || warn "Cursor scoped plugins failed"
+# Cursor can't use a local marketplace or namespace plugin skills, so it gets copies with prefixed names.
+# A marker file tells our folders apart from other local plugins.
+cursor_plugins() {
+  local local_dir="$HOME/.cursor/plugins/local" dir prefix skill name
+  for dir in "$local_dir"/*/; do
+    [ -e "$dir.dev-env" ] && [ ! -d "$plugin_root/plugins/$(basename "$dir")" ] && rm -rf "$dir"
+  done
+  for prefix in $(scoped_plugins); do
+    dir="$local_dir/$prefix"
+    rm -rf "$dir" && mkdir -p "$local_dir" && cp -R "$plugin_root/plugins/$prefix" "$dir" && touch "$dir/.dev-env" ||
+      { warn "Cursor install $prefix failed"; continue; }
+    for skill in "$dir"/skills/*/; do
+      name="$prefix:$(basename "$skill")"
+      # Only the frontmatter name changes; upstream text stays as it is.
+      awk -v name="$name" 'NR == 1 && /^---/ { fm = 1 } fm && !done && /^name:/ { $0 = "name: " name; done = 1 }
+        NR > 1 && /^---/ { fm = 0 } { print }' "$skill/SKILL.md" > "$skill/SKILL.md.tmp" &&
+        mv "$skill/SKILL.md.tmp" "$skill/SKILL.md" && mv "${skill%/}" "$dir/skills/$name" ||
+        warn "Cursor rename $name failed"
+    done
+  done
 }
 
 main() {
-  local list=0
-  read_skill_list || list=$?
-  [ "$list" -ne 2 ] || return 1
+  local list_status=0
+  read_skill_list || list_status=$?
+  [ "$list_status" -ne 2 ] || return 1
   install_devflow || warn "DevFlow clone failed"
   install_instructions || warn "instructions install failed"
-  if [ "$list" -ne 0 ]; then
-    warn "skill list failed"
+  if [ "$list_status" -eq 0 ]; then
+    install_skills || warn "scoped plugin marketplace failed"
   else
-    install_skills || warn "skill install failed"
+    warn "skill list failed"
   fi
-  if command -v claude >/dev/null; then setup_claude "${1:-}"; fi
-  if command -v codex >/dev/null; then setup_codex "${1:-}"; fi
-  if command -v cursor >/dev/null || command -v cursor-agent >/dev/null; then setup_cursor; fi
+  # Plugins are for the next session, so a refresh syncs them too.
+  if command -v claude >/dev/null; then claude_plugins || warn "Claude scoped plugins failed"; fi
+  if command -v codex >/dev/null; then codex_plugins || warn "Codex scoped plugins failed"; fi
+  if command -v cursor >/dev/null || command -v cursor-agent >/dev/null; then cursor_plugins; fi
+  # A running session can't pick up the other harness changes, so a refresh leaves them alone.
+  [ "${1:-}" != refresh ] || return 0
+  if command -v claude >/dev/null; then setup_claude; fi
+  if command -v codex >/dev/null; then setup_codex; fi
 }
 
 # The whole script is read before main runs, so nothing it starts can eat a piped script.

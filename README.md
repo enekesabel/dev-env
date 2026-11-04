@@ -18,9 +18,10 @@ Run it again to update everything. It installs from `main`, so push changes firs
   such as `matt:tdd`, in each installed harness (see below).
 - **Harness extras**: anything only one harness understands, in its own section of
   [`setup.sh`](setup.sh). That section runs only if the harness is installed. Claude's imports the
-  instructions into `~/.claude/CLAUDE.md`, sets the output style, and installs the DevFlow
-  plugin from the shared copy. Codex's links `~/.codex/AGENTS.md` to the instructions. Claude,
-  Codex and Cursor each install the scoped plugins in their own section.
+  instructions into its `CLAUDE.md`, sets the output style, and installs the DevFlow plugin from the
+  shared copy. Codex's links its `AGENTS.md` to the instructions. Both use their config folder
+  (`~/.claude`, `~/.codex`, or `CLAUDE_CONFIG_DIR`/`CODEX_HOME` when set). Claude, Codex and Cursor
+  each install the scoped plugins in their own section.
 
 Codex and Cursor read `~/.agents/skills` themselves. Cursor doesn't read the shared instructions yet.
 
@@ -44,17 +45,17 @@ enekesabel/dev-env *
 matt=mattpocock/skills tdd pr code-review
 ```
 
-Several lines can share a prefix; their skills form one plugin. Prefixes use lowercase letters,
-digits and hyphens, starting with a letter or digit. Setup rejects the same source/skill listed both
-scoped and unscoped, including `*` overlaps. Different sources may share names: this repo's `pr`
-and `code-review` wrap `matt:pr` and `matt:code-review`.
+Each prefix gets one line, and becomes one plugin. Prefixes use lowercase letters, digits and
+hyphens. Setup stops if a prefix appears twice, or if a source's skill is listed both scoped and
+unscoped. Different sources may share names: this repo's `pr` and `code-review` wrap `matt:pr` and
+`matt:code-review`.
 
 ## Scoped plugins and updates
 
 Whenever [`setup.sh`](setup.sh) runs, it rebuilds scoped plugins from the current upstream skills
-in `~/.agents/skill-plugins`, outside the shared skills folder. That folder contains the local
-`dev-env-skills` marketplace, plugin files and ownership records. Generated copies stay on the
-machine. Upstream text stays unchanged, except for Cursor's skill names.
+in `~/.agents/skill-plugins`, outside the shared skills folder, as the local `dev-env-skills`
+marketplace. A build that fails keeps the previous one. Upstream text stays unchanged, except for
+Cursor's skill names.
 
 - **Claude Code** registers the local marketplace and installs missing plugins. Local plugins load
   from their source folders, so rebuilt content appears in the next session without a plugin update.
@@ -64,9 +65,12 @@ machine. Upstream text stays unchanged, except for Cursor's skill names.
   frontmatter `name` use `<prefix>:<skill>`, because Cursor does not add the namespace itself.
 
 Removing skills from a scoped line removes them on the next rebuild. Removing a prefix uninstalls
-its plugins and deletes its generated folders. Setup tracks its own prefixes and leaves unrelated
-plugins alone. An absent harness catches up when setup next runs with it installed. The first run
-also removes the old unscoped Matt skills, preserving replacements from other sources.
+its plugin. Setup only removes plugins from its own marketplace, and Cursor folders it marked as
+its own.
+
+Moving skills from an unscoped line to a scoped one leaves the old copies in `~/.agents/skills`,
+because setup never deletes from there. Remove them once on each machine with
+`npx skills remove <skill>... -g -y`.
 
 For isolated tests, `DEV_ENV_SKILLS_FILE=/absolute/path/to/skills.txt bash setup.sh` reads a local
 list instead of downloading it. Other downloads still use `main`.
