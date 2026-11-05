@@ -5,3 +5,6 @@
 ## Delegating to sub-agents or background agents
 - Delegate work to sub-agents or background agents when it helps.
 - Before dispatching, recommend a model and effort level for each, including when you would use the default, and wait for my approval. One approval can cover a batch of agents dispatched together.
+
+## When documentation and code disagree
+- When a repository's documentation and its existing code disagree, follow the conventions used in the existing code, and in your final reply point out each inconsistency you found between the documentation and the code.
