@@ -14,3 +14,7 @@
 - On my machine, run only the tests that give you the feedback you need or prove the point at hand, such as the affected test file or package, not the whole repository. Leave heavy runs to CI: full suites, end-to-end matrices, mutation testing, builds of every app, and runs that bypass a build cache. Limit the parallelism of anything that runs many packages or workers at once. Do a heavy run here only when I ask for it.
 - Stop every dev server, watcher or background process you start before you hand back.
 - In your report, say which checks you ran and which you left to CI.
+
+## Updating my agent setup
+- "Update my dev env" means running the setup script from my dev-env repo (https://github.com/enekesabel/dev-env), the one-liner in its README: `curl -fsSL https://raw.githubusercontent.com/enekesabel/dev-env/main/setup.sh | bash`. It updates DevFlow, these instructions and the skills.
+- It installs from `main`, so merge or push changes first. Sessions that are already running keep the old instructions.
