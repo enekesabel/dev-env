@@ -7,7 +7,8 @@
 set -uo pipefail
 
 raw=https://raw.githubusercontent.com/enekesabel/dev-env/main
-devflow="$HOME/.agents/dev-flow"
+old_devflow="$HOME/.agents/dev-flow"
+devflow_skill="$HOME/.agents/skills/devflow"
 agents_md="$HOME/.agents/AGENTS.md"
 claude_config="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
 codex_config="${CODEX_HOME:-$HOME/.codex}"
@@ -18,14 +19,16 @@ skill_list=
 
 warn() { echo "dev-env: $*" >&2; }
 
-# One shared copy of DevFlow. A symlink here is an override, so it gets replaced, never pulled through.
-install_devflow() {
-  mkdir -p "$(dirname "$devflow")"
-  [ ! -L "$devflow" ] || rm "$devflow"
-  if [ -d "$devflow/.git" ]; then
-    git -C "$devflow" pull -q --ff-only
+# DevFlow used to be cloned here from its own repo. Remove the clone unless it holds local work.
+remove_old_devflow() {
+  [ -e "$old_devflow" ] || return 0
+  if [ -L "$old_devflow" ]; then
+    rm "$old_devflow"
+  elif [ -z "$(git -C "$old_devflow" status --porcelain 2>&1)" ] &&
+    [ -z "$(git -C "$old_devflow" log --oneline '@{u}..' 2>&1)" ]; then
+    rm -rf "$old_devflow"
   else
-    git clone -q https://github.com/enekesabel/dev-flow.git "$devflow"
+    warn "left $old_devflow in place: it has local changes"
   fi
 }
 
@@ -120,6 +123,18 @@ add_cloud_refresh() {
       + [{hooks: [{type: "command", command: $cmd}]}]'
 }
 
+# The devflow skill as Claude's output style. An output style carries no location, so it says where the
+# skill's linked files are. It is a copy, so it refreshes on every run like the skills do.
+claude_output_style() {
+  local dir="$claude_config/output-styles"
+  [ -f "$devflow_skill/SKILL.md" ] || return 1
+  mkdir -p "$dir" && {
+    printf -- '---\nname: devflow\ndescription: The DevFlow Coordinator. Holds your intent and carries it into delegated work.\n---\n\n'
+    printf 'Relative links below resolve from %s.\n\n' "$devflow_skill"
+    awk 'NR == 1 && /^---/ { fm = 1; next } fm && /^---/ { fm = 0; next } !fm' "$devflow_skill/SKILL.md"
+  } > "$dir/devflow.md.tmp" && mv "$dir/devflow.md.tmp" "$dir/devflow.md"
+}
+
 # Claude loads local plugins from their folder, so new content shows up in the next session.
 claude_plugins() {
   local installed id prefix
@@ -144,12 +159,13 @@ setup_claude() {
   grep -qxF "$import" "$claude_md" 2>/dev/null || printf '\n%s\n' "$import" >> "$claude_md" ||
     warn "instructions import failed"
 
-  # DevFlow plugin, with the Coordinator as the default output style
-  if claude plugin marketplace add "$devflow" && claude plugin install dev-flow@dev-flow &&
-    claude plugin marketplace update dev-flow && claude plugin update dev-flow@dev-flow; then
-    edit_settings '. * {outputStyle: "dev-flow:devflow"}' || warn "DevFlow output style failed"
-  else
-    warn "DevFlow install failed"
+  # The Coordinator as the default output style. DevFlow used to be a plugin, so remove that if present.
+  edit_settings '. * {outputStyle: "devflow"}' || warn "DevFlow output style failed"
+  if claude plugin list --json | jq -e 'any(.[]; .id == "dev-flow@dev-flow")' >/dev/null; then
+    claude plugin uninstall dev-flow@dev-flow || warn "old DevFlow plugin uninstall failed"
+  fi
+  if claude plugin marketplace list --json | jq -e 'any(.[]; .name == "dev-flow")' >/dev/null; then
+    claude plugin marketplace remove dev-flow || warn "old DevFlow marketplace removal failed"
   fi
 
   add_cloud_refresh || warn "cloud refresh failed"
@@ -203,7 +219,6 @@ main() {
   local list_status=0
   read_skill_list || list_status=$?
   [ "$list_status" -ne 2 ] || return 1
-  install_devflow || warn "DevFlow clone failed"
   install_instructions || warn "instructions install failed"
   if [ "$list_status" -eq 0 ]; then
     install_skills || warn "scoped plugin marketplace failed"
@@ -211,13 +226,18 @@ main() {
     warn "skill list failed"
   fi
   # Plugins are for the next session, so a refresh syncs them too.
-  if command -v claude >/dev/null; then claude_plugins || warn "Claude scoped plugins failed"; fi
+  if command -v claude >/dev/null; then
+    claude_plugins || warn "Claude scoped plugins failed"
+    claude_output_style || warn "DevFlow output style file failed"
+  fi
   if command -v codex >/dev/null; then codex_plugins || warn "Codex scoped plugins failed"; fi
   if command -v cursor >/dev/null || command -v cursor-agent >/dev/null; then cursor_plugins; fi
   # A running session can't pick up the other harness changes, so a refresh leaves them alone.
   [ "${1:-}" != refresh ] || return 0
   if command -v claude >/dev/null; then setup_claude; fi
   if command -v codex >/dev/null; then setup_codex; fi
+  # After setup_claude, which uninstalls the plugin that loads from this clone.
+  remove_old_devflow
 }
 
 # The whole script is read before main runs, so nothing it starts can eat a piped script.

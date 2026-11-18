@@ -1,0 +1,5 @@
+interface:
+  display_name: "System Architecture"
+  short_description: "Identify, document and draw a system's architecture"
+policy:
+  allow_implicit_invocation: false

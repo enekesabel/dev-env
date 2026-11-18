@@ -10,16 +10,17 @@ Run it again to update everything. It installs from `main`, so push changes firs
 
 ## What it installs
 
-- **DevFlow**: cloned to `~/.agents/dev-flow`, the one shared copy. The `devflow` skill points at it, so
-  any harness can start the Coordinator.
+- **DevFlow**: the [`devflow`](skills/devflow/SKILL.md) skill, which turns the agent into the DevFlow
+  Coordinator. Invoke it by hand in any harness. In Claude it is also the default output style (see
+  below).
 - **Instructions**: [`AGENTS.md`](AGENTS.md), to `~/.agents/AGENTS.md`, the one shared copy.
 - **Skills**: [`skills.txt`](skills.txt) is the canonical list. Unmarked lines install into
   `~/.agents/skills`, with Claude linked to that folder. Prefixed lines become namespaced plugins,
   such as `mattpocock:tdd`, in each installed harness (see below).
 - **Harness extras**: anything only one harness understands, in its own section of
   [`setup.sh`](setup.sh). That section runs only if the harness is installed. Claude's imports the
-  instructions into its `CLAUDE.md`, sets the output style, and installs the DevFlow plugin from the
-  shared copy. Codex's links its `AGENTS.md` to the instructions. Both use their config folder
+  instructions into its `CLAUDE.md`, writes the `devflow` skill as an output style and makes it the
+  default. Codex's links its `AGENTS.md` to the instructions. Both use their config folder
   (`~/.claude`, `~/.codex`, or `CLAUDE_CONFIG_DIR`/`CODEX_HOME` when set). Claude, Codex and Cursor
   each install the scoped plugins in their own section.
 
@@ -89,13 +90,22 @@ ln -s ~/path/to/skills/<name> ~/.agents/skills/<name>
 ```
 
 For an unscoped skill, running the setup again removes the link and restores the published version.
-Your working copy stays as it is. This restores every override at once. To work on DevFlow itself, link
-`~/.agents/dev-flow` to your checkout the same way. `~/.agents/AGENTS.md` works the same.
+Your working copy stays as it is. This restores every override at once. `~/.agents/AGENTS.md` works the
+same. Claude's DevFlow output style is a copy of the installed `devflow` skill, made on each setup run,
+so to try a change to DevFlow, invoke `/devflow` with the skill linked.
 
 ## Cloud
 
 Use the line above as the environment's setup script. Cloud sessions start from a snapshot that can be
-about a week old, so the setup adds a session start hook that refreshes DevFlow, the instructions and
+about a week old, so the setup adds a session start hook that refreshes the instructions and
 the skills in each cloud session, including rebuilding scoped plugins and refreshing their harness
-installs for the next session. Other harness settings and the DevFlow plugin update when the snapshot
-is rebuilt. The hook does nothing locally, so it can't restore a skill you're experimenting with.
+installs for the next session. Other harness settings update when the snapshot is rebuilt. The hook does nothing locally, so it can't restore a skill you're experimenting with.
+
+## Use DevFlow without this setup
+
+DevFlow used to live in its own repository, [enekesabel/dev-flow](https://github.com/enekesabel/dev-flow).
+Install just the skill with:
+
+```bash
+npx skills add enekesabel/dev-env --skill devflow
+```

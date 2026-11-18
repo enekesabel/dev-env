@@ -4,7 +4,6 @@
 # Lines sharing a prefix form one plugin. A source/skill cannot be scoped and unscoped.
 
 enekesabel/dev-env *
-enekesabel/dev-flow use-skill
 t3dotgg/tstack leaving-pr-comments
 humanlayer/skills show-me
 DietrichGebert/ponytail *
