@@ -1,6 +1,8 @@
 # Consumers and surfaces
 
 Start from the repositories the user names, or the current repository when they name none.
+When the product already has a `PRODUCT_SURFACES.md`, start from it: check it against the
+repositories and propose what to add, remove or change.
 
 1. List the consumers. For each, say who they are and the goal they come with.
 2. List the surfaces, numbered. For each, say what it is, which consumers meet it, and where in the

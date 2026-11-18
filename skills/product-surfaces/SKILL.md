@@ -30,5 +30,15 @@ of its own when consumers meet it as a step in a user flow the product owns.
 
 1. List the consumers and surfaces, following
    [references/consumers-and-surfaces.md](references/consumers-and-surfaces.md).
+2. Show the list to the user and discuss it until they confirm it. Their corrections come before
+   anything else.
+3. Save the confirmed list. Propose `PRODUCT_SURFACES.md` in the repository root, and let the user
+   pick another place; when the product spans several repositories, they pick the repository too.
+   Save the consumers, and the surfaces with their consumers. The paths and questions stay in the
+   conversation.
+4. Point to the file from the agent instructions of every repository of the product (`AGENTS.md`,
+   `CLAUDE.md` or whichever the repository uses), with this sentence and the file's path:
 
-Then show the list to the user and discuss it. Their corrections come before anything else.
+   > The product's consumers and the surfaces where they meet it are listed in
+   > `<path>/PRODUCT_SURFACES.md`. When a change adds, removes or reshapes a consumer or a surface,
+   > propose the update to the user and edit the file once they agree.
