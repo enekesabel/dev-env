@@ -32,6 +32,10 @@ Codex and Cursor read `~/.agents/skills` themselves. Cursor doesn't read the sha
 
 Then run the setup again.
 
+Skills that adapt to the machine keep what they discover in `~/.agents/dev-env/<skill>/`. Setup never
+touches that folder, so it survives updates. [`skills/AGENTS.md`](skills/AGENTS.md) has the convention
+for writing such skills.
+
 Each line in [`skills.txt`](skills.txt) has this form:
 
 ```text
