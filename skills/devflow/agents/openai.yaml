@@ -1,0 +1,5 @@
+interface:
+  display_name: "DevFlow"
+  short_description: "Act as the DevFlow Coordinator"
+policy:
+  allow_implicit_invocation: false
