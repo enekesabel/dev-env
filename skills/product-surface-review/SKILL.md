@@ -54,3 +54,8 @@ The changed files that made no change on any surface.
    Leave it out when it is empty.
 
 The review is done when every changed file sits under a change or behind the curtain.
+
+## Evidence
+
+When the user asks for evidence, with the review or after it, follow
+[references/evidence.md](references/evidence.md).
