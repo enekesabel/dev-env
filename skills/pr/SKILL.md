@@ -9,4 +9,4 @@ Decide whether the change gets a diagram. It gets one when a reviewer would gras
 
 When it gets one, draw it yourself with the `pr-lens` skill and put the walkthrough in the PR description, following that skill's steps for attaching to a pull request. Keep the drawing local: push a canvas only when the user asks for one.
 
-If the PR needs other images, upload them with the `pr-screenshots` skill and use the image lines it prints.
+If the PR needs other images, add them with the `pr-screenshots` skill.
