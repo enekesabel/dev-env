@@ -9,6 +9,11 @@
 ## When documentation and code disagree
 - When a repository's documentation and its existing code disagree, follow the conventions used in the existing code, and in your final reply point out each inconsistency you found between the documentation and the code.
 
+## Writing rules down
+- Write each rule once, next to the config or code that enforces it. Other docs, this file included, link to it rather than restate it.
+- The code, its types and its tests say what the code does. A doc or a comment adds only what they cannot say.
+- Every rule nothing enforces, and every comment, carries its reason on the same line, so a later reader can tell when it no longer holds.
+
 ## Running tests and builds locally
 - First check where you are running. On my own machine, several agents share it, so keep runs small. In a cloud sandbox or CI, where the machine is yours alone, heavy runs are fine. If you can't tell, assume my machine.
 - On my machine, run only the tests that give you the feedback you need or prove the point at hand, such as the affected test file or package, not the whole repository. Leave heavy runs to CI: full suites, end-to-end matrices, mutation testing, builds of every app, and runs that bypass a build cache. Limit the parallelism of anything that runs many packages or workers at once. Do a heavy run here only when I ask for it.
