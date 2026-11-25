@@ -33,10 +33,14 @@ After:
 
 > Invoices are rendered to PDF on the server, so every Customer gets the same document whatever their device. We rejected rendering in the browser, where layout differed between devices. The cost is that the server does the rendering work.
 
+## Approval
+
+Show the user the complete ADR and wait for an explicit yes to it before you commit. Agreement with a plan does not count. One yes covers a replacement: the new ADR, the old one's status and its move.
+
 ## How to change or retire one
 
 Edit an ADR in place when the decision stays the same: clearer wording, a renamed glossary term, a fixed link, detail cut out.
 
-When the decision itself changes, even in one choice, reason or rejected option, write a new ADR that states the whole decision now in force and replaces the old one. Set the old one's Status to `superseded by ADR-NNNN`. Done when the new ADR reads alone: a reader learns the decision without opening another ADR.
+When the decision itself changes, even in one choice, reason or rejected option, write a new ADR that states the whole decision now in force, with `status: accepted` and `supersedes: ADR-NNNN`. Done when the new ADR reads alone: a reader learns the decision without opening another ADR.
 
-To drop a decision with nothing in its place, set its Status to `deprecated`.
+Retire the old one: set its status to `superseded by ADR-NNNN`, or to `deprecated` when nothing replaces it, and `git mv` it into a `retired/` folder beside the ADRs, its text otherwise unchanged. Every ADR outside `retired/` is then in force. Its number and file name stay, so citations by number stay right; update every link to its old path in the same change.
