@@ -51,17 +51,31 @@ Check it against the tests in the `adr` skill. If it fails any of them, keep the
 
 Units, ranges, what an empty value means, or why the obvious alternative fails. Once the recommended change lands, delete the comment.
 
-Bad:
+A comment a type could carry. Bad:
 
 ```ts
 // Seconds, not ms: the payment provider sends Unix time.
 paidAt: number
+```
 
+Good:
+
+```ts
+paidAt: UnixSeconds
+```
+
+A comment a test could carry. Bad:
+
+```ts
 // Not setInterval: a tick that runs long would pile up calls.
 schedule(tick)
 ```
 
-Good: `paidAt: UnixSeconds`, and a test named "a slow tick does not overlap the next", with no comments.
+Good: no comment, and a test:
+
+```ts
+test('a slow tick does not overlap the next', async () => {
+```
 
 ### Excuses a workaround
 
