@@ -61,7 +61,7 @@ paidAt: number
 schedule(tick)
 ```
 
-Good: `paidAtSeconds: number`, and a test named "a slow tick does not overlap the next", with no comments.
+Good: `paidAt: UnixSeconds`, and a test named "a slow tick does not overlap the next", with no comments.
 
 ### Excuses a workaround
 
@@ -74,15 +74,22 @@ Bad:
 await sleep(500)
 ```
 
+Good, when the fix is out of scope:
+
+```ts
+// Upstream drops events sent in the first 500 ms; remove once https://github.com/example/sdk/issues/123 is fixed.
+await sleep(500)
+```
+
 ### Restates the code, narrates its history, or is stale
 
-Delete a comment when the code already says the same thing, when it tells what changed or moved, or when it no longer matches the code. Git and the PR keep the history. If a stale comment holds a reason that still applies, correct it instead.
+Delete a comment when the code already says the same thing, when it tells what changed or moved, or when it no longer matches the code. Git and the PR keep the history. If a stale comment holds a reason that still applies, correct it instead. If a history comment also gives a reason, drop the history and sort the reason on its own.
 
 Bad:
 
 ```ts
-// Increment the retry count
-retries++
+// Get the user by ID
+function getUserById(id: string) {
 
 // Moved from utils.ts and switched to the new client
 export function fetchUser(id: string) {

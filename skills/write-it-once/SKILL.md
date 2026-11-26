@@ -3,7 +3,7 @@ name: write-it-once
 description: Use when writing or editing an AGENTS.md, a skill or a doc, or deciding where a rule, a reason or a fact belongs.
 ---
 
-Write with the `mattpocock:writing-for-agents` skill, and add these rules.
+Write with the `mattpocock:writing-for-agents` skill, and add these rules. For code comments, use the `code-comment-review` skill.
 
 ## Where each statement lives
 
@@ -21,7 +21,7 @@ Before you write anything into an `AGENTS.md`, a skill or a doc, find its kind i
 
 ## The reason goes on the same line
 
-Put the reason on the same line as its rule or comment. A reason kept further down the file, or only in the PR, is lost the first time the line moves. A comment that says what a declaration means is its own reason.
+Put the reason on the same line as its rule or comment. A reason kept further down the file, or only in the PR, is lost the first time the line moves. A comment that says what a declaration means, which its name and type cannot, is its own reason.
 
 ## Examples
 
@@ -37,15 +37,13 @@ Good:
 
 > - Import from `billing/`: `legacy/` is deleted once its last caller moves.
 
-A retelling of code, and a link to the code:
+A retelling of code in an `AGENTS.md`:
 
 Bad:
 
-> Outbound calls retry three times, after 200, 400 and 800 ms, and give up on any 4xx response.
+> - Outbound calls retry three times, after 200, 400 and 800 ms, and give up on any 4xx response.
 
-Good:
-
-> Retry outbound calls with `retry()` in `http/retry.ts`; its tests give the schedule.
+Good: no line. The code and its tests are the source of truth, and an agent finds them by looking.
 
 A rule a check enforces, restated in guidance:
 
@@ -54,19 +52,3 @@ Bad:
 > - Keep functions under 50 lines.
 
 Good: no line. The lint config enforces the limit, and its error message tells the agent when a function breaks it.
-
-A comment that restates a name:
-
-Bad:
-
-```ts
-// Get the user by ID
-function getUserById(id: string) {
-```
-
-Good: no comment, or one that says what the name cannot:
-
-```ts
-// Reads the replica: a user created in the last second may be missing.
-function getUserById(id: string) {
-```
