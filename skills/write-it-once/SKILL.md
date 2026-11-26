@@ -1,5 +1,5 @@
 ---
-name: say-it-once
+name: write-it-once
 description: Use when writing or editing an AGENTS.md, a skill or a doc, or deciding where a rule, a reason or a fact belongs.
 ---
 
@@ -7,7 +7,7 @@ Write with the `mattpocock:writing-for-agents` skill, and add these rules.
 
 ## Where each statement lives
 
-Say each thing once, in the one place that keeps it true:
+Before you write anything into an `AGENTS.md`, a skill or a doc, find its kind in this table and put it where that row says.
 
 | Kind of statement | Where it lives |
 | --- | --- |
@@ -19,42 +19,52 @@ Say each thing once, in the one place that keeps it true:
 | How to do a rare task | A skill or a doc beside the thing |
 | What moved when | Git and the PR |
 
-Before you add a line to a doc, find its row. If the row points elsewhere, put the statement there and link to it, or leave it out.
-
 ## The reason goes on the same line
 
-Every rule nothing enforces, and every comment, carries its reason in the same sentence or bullet. The reason is what lets a later reader delete the line once it no longer holds. Without it, nobody can tell whether the line still matters, so it stays for good. A reason kept further down the file, or only in the PR, is lost the first time the line moves.
+Put the reason on the same line as its rule or comment. A reason kept further down the file, or only in the PR, is lost the first time the line moves. A comment that says what a declaration means is its own reason.
 
 ## Examples
 
 The names and paths are made up.
 
-An `AGENTS.md` line without its reason, then with it:
+An `AGENTS.md` line without its reason, and with it:
+
+Bad:
 
 > - Never import from `legacy/`.
 
+Good:
+
 > - Import from `billing/`: `legacy/` is deleted once its last caller moves.
 
-A retelling of code, replaced by a link:
+A retelling of code, and a link to the code:
+
+Bad:
 
 > Outbound calls retry three times, after 200, 400 and 800 ms, and give up on any 4xx response.
+
+Good:
 
 > Retry outbound calls with `retry()` in `http/retry.ts`; its tests give the schedule.
 
 A rule a check enforces, restated in guidance:
 
+Bad:
+
 > - Keep functions under 50 lines.
 
-After: the line is gone. The lint config enforces the limit, and its error message tells the agent when a function breaks it.
+Good: no line. The lint config enforces the limit, and its error message tells the agent when a function breaks it.
 
 A comment that restates a name:
+
+Bad:
 
 ```ts
 // Get the user by ID
 function getUserById(id: string) {
 ```
 
-After: the comment is gone, or replaced by what the name cannot say:
+Good: no comment, or one that says what the name cannot:
 
 ```ts
 // Reads the replica: a user created in the last second may be missing.
